@@ -57,26 +57,27 @@ export default function Profile() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-between p-24"
+      className="flex min-h-screen flex-col items-center justify-between lg:p-24 p-10"
       style={{
         backgroundImage: "url(/tarot_design_dark.png)", // Path to your background image
         backgroundSize: "cover", // Adjust as needed
         backgroundPosition: "center", // Adjust as needed
       }}
     >
-      <div className="z-10 max-w-6xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <Link
-          href="/"
-          className="text-white text-xl fixed left-0 top-0 flex w-full justify-center pb-6 backdrop-blur-2xl dark:border-neutral-800 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:p-4"
+      <div className="z-10 lg:max-w-6xl w-full justify-between font-mono text-sm lg:flex md:flex">
+        <p
+          className="text-white text-xl pb-6 backdrop-blur-2xl dark:border-neutral-800 dark:from-inherit rounded-xl p-4"
           style={{
             backgroundColor: "#1F2544",
             boxShadow: "inset -10px -10px 60px 0 rgba(255, 255, 255, 0.4)",
           }}
         >
+          <Link href="/">
           Tarot Reading
-        </Link>
+          </Link>
+        </p>
         <div
-          className="rounded-lg px-2 py-2 fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none"
+          className="rounded-lg px-2 py-2 lg:mt-0 md:mt-0 mt-4"
           style={{
             backgroundColor: "#F1FFAB",
             boxShadow: "inset -10px -10px 60px 0 rgba(255, 255, 255, 0.4)",

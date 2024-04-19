@@ -35,3 +35,16 @@ body {
 .bgcolor {
   background: linear-gradient(0.25turn, #0162FF85, #0162FF0D);
 }
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+@media (max-width: 1000px) {
+  .grid-container {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+

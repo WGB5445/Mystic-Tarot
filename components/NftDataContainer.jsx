@@ -23,17 +23,13 @@ const NftdataContainer = ({
   return (
     <>
       <div
-        className="mx-auto px-10 min-h-screen py-10"
+        className="mx-auto lg:px-10 min-h-screen py-10"
       >
         {metaDataArray?.length === 0 ? (
           renderNoReviewsFound()
         ) : (
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: "2rem",
-            }}
+          className="grid-container"
           >
             {metaDataArray?.map((metaData, index) => (
               <div
