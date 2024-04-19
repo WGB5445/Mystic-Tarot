@@ -5,16 +5,21 @@ import Cookies from "js-cookie";
 import Link from "next/link";
 import { useKeylessAccounts } from "../src/app/lib/useKeylessAccounts";
 import { collapseAddress } from "../src/app/lib/utils";
-import useAptos from "./context/useAptos";
-import {Account} from '@aptos-labs/ts-sdk';
+import {useWallet} from '@suiet/wallet-kit';
+
+// import useAptos from "./context/useAptos";
+// import {Account} from '@aptos-labs/ts-sdk';
 import GoogleLogo from "../components/GoogleLogo";
+import {ConnectButton} from '@suiet/wallet-kit';
 
 const REACT_APP_GATEWAY_URL = "https://gateway.netsepio.com/";
 
 const Navbar = () => {
   const wallet = Cookies.get("tarot_wallet");
 
-  const { aptos, moduleAddress } = useAptos();
+  // const { aptos, moduleAddress } = useAptos();
+  const {status, connected, connecting , account , network, name} = useWallet();
+
 
   const { activeAccount, disconnectKeylessAccount } = useKeylessAccounts();
   console.log("activeAccount", activeAccount);
@@ -27,40 +32,40 @@ const Navbar = () => {
     color: hovered ? "red" : "black",
   };
 
-  const getAptosWallet = () => {
-    if ("aptos" in window) {
-      return window.aptos;
-    } else {
-      window.open("https://petra.app/", "_blank");
-    }
-  };
+  // const getAptosWallet = () => {
+  //   if ("aptos" in window) {
+  //     return window.aptos;
+  //   } else {
+  //     window.open("https://petra.app/", "_blank");
+  //   }
+  // };
 
-  const connectWallet = async () => {
-    const aptosWallet = getAptosWallet();
-    try {
-      const response = await aptosWallet.connect();
-      console.log(response); // { address: string, publicKey: string }
-      // Check the connected network
-      const network = await aptosWallet.network();
-      if (network === "Devnet") {
+  // const connectWallet = async () => {
+  //   const aptosWallet = getAptosWallet();
+  //   try {
+  //     const response = await aptosWallet.connect();
+  //     console.log(response); // { address: string, publicKey: string }
+  //     // Check the connected network
+  //     const network = await aptosWallet.network();
+  //     if (network === "Devnet") {
 
-        // signing message
-        const payload = {
-          message: "Hello from Aptos Tarot",
-          nonce: Math.random().toString(16),
-        };
-        const res = await aptosWallet.signMessage(payload);
-        // signing message
+  //       // signing message
+  //       const payload = {
+  //         message: "Hello from Aptos Tarot",
+  //         nonce: Math.random().toString(16),
+  //       };
+  //       const res = await aptosWallet.signMessage(payload);
+  //       // signing message
 
-        Cookies.set("tarot_wallet", response.address, { expires: 7 });
-        window.location.reload();
-      } else {
-        alert(`Switch to Devnet in your Petra wallet`);
-      }
-    } catch (error) {
-      console.error(error); // { code: 4001, message: "User rejected the request."}
-    }
-  };
+  //       Cookies.set("tarot_wallet", response.address, { expires: 7 });
+  //       window.location.reload();
+  //     } else {
+  //       alert(`Switch to Devnet in your Petra wallet`);
+  //     }
+  //   } catch (error) {
+  //     console.error(error); // { code: 4001, message: "User rejected the request."}
+  //   }
+  // };
 
   const handleDeleteCookie = () => {
     Cookies.remove("tarot_wallet");
@@ -204,8 +209,8 @@ const Navbar = () => {
               </div>
               <div className="flex justify-center p-4 pb-10">
               <button className="text-black px-6 py-2 bg-white" style={{borderRadius:'10px'}} 
-              onClick={connectWallet}>
-              Connect with Petra
+             >
+               <ConnectButton label="Connect with sui"/>
               </button>
                     </div>
                     <div className="flex justify-center p-4 pb-20">
