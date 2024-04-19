@@ -6,7 +6,9 @@ import Navbar from "../../components/Navbar";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { Aptos, Network, AptosConfig } from '@aptos-labs/ts-sdk';
+import {ConnectButtons} from '@suiet/wallet-kit';
 import dynamic from 'next/dynamic';
+import {useWallet} from '@suiet/wallet-kit';
 
 export default function Home() {
   const [drawnCard, setDrawnCard] = useState(null);
@@ -22,6 +24,7 @@ export default function Home() {
 
   const handleDrawCardAndFetchreading = async () => {
     const wallet = Cookies.get("tarot_wallet");
+    // const wallet = useWallet()
 
     setLoading(true);
 
@@ -131,9 +134,10 @@ export default function Home() {
   const NoSSRComponent = dynamic(() => import('../../components/Redirect'), {
     ssr: false
   });
+  // ----------------------------------------------------------------------------------------------------------
 
-  const aptosConfig = new AptosConfig({ network: Network.DEVNET });
-  const aptos = new Aptos(aptosConfig);
+  // const aptosConfig = new AptosConfig({ network: Network.DEVNET });
+  // const aptos = new Aptos(aptosConfig);
 
 
   return (
