@@ -6,20 +6,16 @@ import Link from "next/link";
 import { useKeylessAccounts } from "../src/app/lib/useKeylessAccounts";
 import { collapseAddress } from "../src/app/lib/utils";
 import {useWallet} from '@suiet/wallet-kit';
-
-// import useAptos from "./context/useAptos";
-// import {Account} from '@aptos-labs/ts-sdk';
 import GoogleLogo from "../components/GoogleLogo";
 import {ConnectButton} from '@suiet/wallet-kit';
 
 const REACT_APP_GATEWAY_URL = "https://gateway.netsepio.com/";
 
 const Navbar = () => {
-  const wallet = Cookies.get("tarot_wallet");
 
-  // const { aptos, moduleAddress } = useAptos();
   const {status, connected, connecting , account , network, name} = useWallet();
-
+  const wallet = account?.address;
+console.log("my sui wallet", wallet);
 
   const { activeAccount, disconnectKeylessAccount } = useKeylessAccounts();
   console.log("activeAccount", activeAccount);
@@ -133,7 +129,7 @@ const Navbar = () => {
   return (
     <div>
       <div className="flex gap-4">
-          <Link href="/profile">{avatarUrl && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
+          <Link href="/profile">{avatarUrl && wallet && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
           <ConnectButton label="Connect with sui"/>
           </div>
 
