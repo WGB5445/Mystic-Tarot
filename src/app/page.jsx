@@ -32,10 +32,10 @@ export default function Home() {
     try {
       
       const tx = new TransactionBlock();  
-      const packageObjectId = "0x2fc825e6742fe8759011d3a70aa7a0b290361083cd1d2c15aa2f02acdc3180e6";
+      const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
       tx.moveCall({
-        target: `${packageObjectId}::Mystic::Draws_card`,
-        arguments: [],
+        target: `${packageObjectId}::mystic::draws_card`,
+        arguments: [tx.object('0x8')],
       });
       const drawResponse = await walletsui.signAndExecuteTransactionBlock({
         transactionBlock: tx,
@@ -78,7 +78,7 @@ export default function Home() {
   
 
       if (!readingResponse.ok) {
-        throw new Error("Failed to fetch rap lyrics");
+        throw new Error("Failed to fetch reading");
       }
 
       const readingData = await readingResponse.json();
@@ -87,7 +87,7 @@ export default function Home() {
       console.log("Data to send in mint:", card, position);
 
     } catch (error) {
-      console.error("Error handling draw card and fetching rap lyrics:", error);
+      console.error("Error handling draw card and fetching reading:", error);
     } finally {
       setLoading(false);
     }
@@ -98,17 +98,17 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const mintTransaction = {
-        arguments: [description, lyrics, drawnCard, position],
-        function:
-          "0x973d0f394a028c4fc74e069851114509e78aba9e91f52d000df2d7e40ec5205b::tarot::mint_card",
-        type: "entry_function_payload",
-        type_arguments: [],
-      };
 
-      const mintResponse = await window.aptos.signAndSubmitTransaction(
-        mintTransaction
-      );
+      const tx = new TransactionBlock();  
+      const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
+      tx.moveCall({
+        target: `${packageObjectId}::Mystic::Mint_card`,
+        arguments: [description, lyrics, drawnCard, position],
+      });
+      const mintResponse = await walletsui.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+      });
+
       console.log("Mint Card Transaction:", mintResponse);
       setmintdone(true);
     } catch (error) {
