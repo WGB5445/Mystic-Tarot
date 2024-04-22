@@ -102,7 +102,7 @@ export default function Home() {
       const tx = new TransactionBlock();  
       const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
       tx.moveCall({
-        target: `${packageObjectId}::Mystic::Mint_card`,
+        target: `${packageObjectId}::mystic::mint_card`,
         arguments: [description, lyrics, drawnCard, position],
       });
       const mintResponse = await walletsui.signAndExecuteTransactionBlock({
