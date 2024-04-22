@@ -9,6 +9,7 @@ import { Aptos, Network, AptosConfig } from '@aptos-labs/ts-sdk';
 import {ConnectButtons} from '@suiet/wallet-kit';
 import dynamic from 'next/dynamic';
 import {useWallet} from '@suiet/wallet-kit';
+import {TransactionBlock} from "@mysten/sui.js/transactions";
 
 export default function Home() {
   const [drawnCard, setDrawnCard] = useState(null);
@@ -23,25 +24,23 @@ export default function Home() {
   const {status, connected, connecting , account , network, name} = useWallet();
   console.log("sui wallet", account);
   const wallet = account?.address;
+  const walletsui = useWallet();
 
   const handleDrawCardAndFetchreading = async () => {
-    const wallet = Cookies.get("tarot_wallet");
-    // const wallet = useWallet()
-
     setLoading(true);
 
-    const drawTransaction = {
-      arguments: [],
-      function:
-        "0x973d0f394a028c4fc74e069851114509e78aba9e91f52d000df2d7e40ec5205b::tarot::draws_card",
-      type: "entry_function_payload",
-      type_arguments: [],
-    };
-
     try {
-      const drawResponse = await window.aptos.signAndSubmitTransaction(
-        drawTransaction
-      );
+      
+      const tx = new TransactionBlock();  
+      const packageObjectId = "0x2fc825e6742fe8759011d3a70aa7a0b290361083cd1d2c15aa2f02acdc3180e6";
+      tx.moveCall({
+        target: `${packageObjectId}::Mystic::Draws_card`,
+        arguments: [],
+      });
+      const drawResponse = await walletsui.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+      });
+
       console.log("Drawn Card Transaction:", drawResponse);
 
       const card = drawResponse.events[2].data.card;
@@ -76,10 +75,6 @@ export default function Home() {
         headers: headers,
         body: JSON.stringify(requestBody),
       });
-
-      // let result = await readingResponse.json();
-      // result += result.choices[0]?.delta?.content || "";
-      // res.status(200).json({ lyrics: result });
   
 
       if (!readingResponse.ok) {
@@ -91,16 +86,6 @@ export default function Home() {
       console.log(readingData);
       console.log("Data to send in mint:", card, position);
 
-      // const mintTransaction = {
-      //   arguments: [wallet, description, readingData.lyrics, card, position],
-      //   function:
-      //     '0x973d0f394a028c4fc74e069851114509e78aba9e91f52d000df2d7e40ec5205b::tarot::mint_card_v4',
-      //   type: 'entry_function_payload',
-      //   type_arguments: [],
-      // };
-
-      // const mintResponse = await window.aptos.signAndSubmitTransaction(mintTransaction);
-      // console.log('Mint Card Transaction:', mintResponse);
     } catch (error) {
       console.error("Error handling draw card and fetching rap lyrics:", error);
     } finally {
@@ -133,15 +118,6 @@ export default function Home() {
     }
   };
 
-  const NoSSRComponent = dynamic(() => import('../../components/Redirect'), {
-    ssr: false
-  });
-  // ----------------------------------------------------------------------------------------------------------
-
-  // const aptosConfig = new AptosConfig({ network: Network.DEVNET });
-  // const aptos = new Aptos(aptosConfig);
-
-
   return (
     <main
       className="flex min-h-screen flex-col items-center justify-between lg:p-24 p-10"
@@ -169,7 +145,6 @@ export default function Home() {
           // }}
         >
           <Navbar />
-<NoSSRComponent />
         </div>
       </div>
 
