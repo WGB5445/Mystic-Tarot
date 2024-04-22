@@ -20,7 +20,9 @@ export default function Home() {
   const [position, setposition] = useState("");
   const [mintdone, setmintdone] = useState(false);
 
-  const wallet = Cookies.get("tarot_wallet");
+  const {status, connected, connecting , account , network, name} = useWallet();
+  console.log("sui wallet", account);
+  const wallet = account?.address;
 
   const handleDrawCardAndFetchreading = async () => {
     const wallet = Cookies.get("tarot_wallet");

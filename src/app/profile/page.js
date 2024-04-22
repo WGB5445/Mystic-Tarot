@@ -6,6 +6,7 @@ import Navbar from "../../../components/Navbar";
 import NftdataContainer from "../../../components/NftDataContainer";
 import Cookies from "js-cookie";
 import axios from "axios";
+import {useWallet} from '@suiet/wallet-kit';
 const envcollectionid = "0xed5230f1731b1fdf4a98a63e58007e520b5d9f1ee601b8521eaa186ac79ed177";
 const graphqlaptos = "https://api.devnet.aptoslabs.com/v1/graphql";
 
@@ -13,7 +14,9 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [nftdata, setnftdata] = useState(null);
 
-  const wallet = Cookies.get("tarot_wallet");
+  const {status, connected, connecting , account , network, name} = useWallet();
+  console.log("sui wallet", account);
+  const wallet = account?.address;
 
   useEffect(() => {
     const vpnnft = async () => {

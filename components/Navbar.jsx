@@ -132,7 +132,10 @@ const Navbar = () => {
 
   return (
     <div>
-      <ConnectButton label="Connect with sui"/>
+      <div className="flex gap-4">
+          <Link href="/profile">{avatarUrl && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
+          <ConnectButton label="Connect with sui"/>
+          </div>
 
     {/* {!wallet && !activeAccount && (
 <button onClick={()=>{setloginbox(true)}} className="px-10 py-2 text-xl">Login</button>
