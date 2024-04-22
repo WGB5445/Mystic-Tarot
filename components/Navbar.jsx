@@ -132,7 +132,9 @@ const Navbar = () => {
 
   return (
     <div>
-    {!wallet && !activeAccount && (
+      <ConnectButton label="Connect with sui"/>
+
+    {/* {!wallet && !activeAccount && (
 <button onClick={()=>{setloginbox(true)}} className="px-10 py-2 text-xl">Login</button>
       )}
 
@@ -200,8 +202,6 @@ const Navbar = () => {
                 </button>
               </div>
 
-              {/* <Image src={emoji} alt="info" className="mx-auto"/> */}
-
               <div className="p-4 space-y-4">
                 <p className="text-3xl text-center font-bold text-green-500">
                 Login Options
@@ -221,7 +221,7 @@ const Navbar = () => {
             </div>
           </div>
         </div>
-  )}
+  )} */}
     </div>
   );
 };

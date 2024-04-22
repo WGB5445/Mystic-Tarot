@@ -89,11 +89,11 @@ export default function Profile() {
           Tarot Reading
         </Link>
         <div
-          className="rounded-lg px-2 py-2 fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none"
-          style={{
-            backgroundColor: "#F1FFAB",
-            boxShadow: "inset -10px -10px 60px 0 rgba(255, 255, 255, 0.4)",
-          }}
+          // className="rounded-lg px-2 py-2 fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none"
+          // style={{
+          //   backgroundColor: "#F1FFAB",
+          //   boxShadow: "inset -10px -10px 60px 0 rgba(255, 255, 255, 0.4)",
+          // }}
         >
           <Navbar />
         </div>
@@ -123,16 +123,16 @@ export default function Profile() {
 
               <div className="p-4 space-y-4">
                 <p className="text-2xl text-center font-bold" style={{color:'#FFB000'}}>
-                Please connect your Aptos Wallet
+                Please connect your Sui Wallet
                 </p>
               </div>
-              <div className="flex items-center p-4 rounded-b pb-20 pt-10">
-                <button
+              <div className="flex items-center p-4 rounded-b pb-20 pt-10 justify-center">
+                {/* <button
                   type="button"
                   className="w-1/2 mx-auto text-black bg-white font-bold focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg text-md px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                >
+                > */}
                   <Navbar />
-                </button>
+                {/* </button> */}
               </div>
             </div>
           </div>
