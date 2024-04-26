@@ -5,11 +5,14 @@ import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import Cookies from "js-cookie";
 import axios from "axios";
-import { Aptos, Network, AptosConfig } from '@aptos-labs/ts-sdk';
-import {ConnectButtons} from '@suiet/wallet-kit';
+
 import dynamic from 'next/dynamic';
-import {useWallet} from '@suiet/wallet-kit';
+
+import { ConnectButton, useCurrentWallet} from '@mysten/dapp-kit';
+
 import {TransactionBlock} from "@mysten/sui.js/transactions";
+import '@mysten/dapp-kit/dist/index.css';
+
 
 export default function Home() {
   const [drawnCard, setDrawnCard] = useState(null);
@@ -20,11 +23,35 @@ export default function Home() {
   const [cardimage, setcardimage] = useState("");
   const [position, setposition] = useState("");
   const [mintdone, setmintdone] = useState(false);
+  const { currentWallet, connectionStatus } = useCurrentWallet()
 
-  const {status, connected, connecting , account , network, name} = useWallet();
-  console.log("sui wallet", account);
-  const wallet = account?.address;
-  const walletsui = useWallet();
+//   const getStoredWallet = () => {
+//     try {
+//       return window.localStorage.getItem("connectedWallet");
+//     } catch {
+//       return null;
+//     }
+//   };
+  
+//   const [connectedWallet, setConnectedWallet] = useState(getStoredWallet());
+  
+//  useEffect(() => {
+//     if (connectionStatus === "connected" && currentWallet.accounts.length > 0) {
+//       const address = currentWallet.accounts[0].address;
+//       setConnectedWallet(address);
+//     } else {
+//       setConnectedWallet(null);
+//     }
+//   }, [connectionStatus, currentWallet]);
+
+
+  // console.log("sui wallet", currentWallet);
+  if (connectionStatus === 'connected' && currentWallet.accounts.length > 0) {
+    console.log('Connected Wallet Address:', currentWallet.accounts[0].address);
+  }
+
+
+
 
   const handleDrawCardAndFetchreading = async () => {
     setLoading(true);
@@ -37,7 +64,7 @@ export default function Home() {
         target: `${packageObjectId}::mystic::draws_card`,
         arguments: [tx.object('0x8')],
       });
-      const drawResponse = await walletsui.signAndExecuteTransactionBlock({
+      const drawResponse = await currentWallet.signAndExecuteTransactionBlock({
         transactionBlock: tx,
       });
 
@@ -105,7 +132,7 @@ export default function Home() {
         target: `${packageObjectId}::mystic::mint_card`,
         arguments: [description, lyrics, drawnCard, position],
       });
-      const mintResponse = await walletsui.signAndExecuteTransactionBlock({
+      const mintResponse = await currentWallet.signAndExecuteTransactionBlock({
         transactionBlock: tx,
       });
 
@@ -161,7 +188,7 @@ export default function Home() {
             </button>
           )}
 
-          {ques && wallet && (
+          {ques && currentWallet && (
             <div
               className="px-10 py-10 bgcolor rounded-2xl mt-10 max-w-xl"
               style={{
@@ -248,7 +275,7 @@ export default function Home() {
         )}
       </div>
 
-      {ques && !wallet && (
+      {ques && !currentWallet && (
         <div
           style={{ backgroundColor: "#222944E5" }}
           className="flex overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full max-h-full"

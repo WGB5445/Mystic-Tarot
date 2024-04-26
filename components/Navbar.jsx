@@ -2,14 +2,21 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import {useWallet} from '@suiet/wallet-kit';
-import {ConnectButton} from '@suiet/wallet-kit';
 
+import { ConnectButton, useCurrentAccount,  useCurrentWallet, useAccounts } from '@mysten/dapp-kit';
 const Navbar = () => {
 
-  const {status, connected, connecting , account , network, name} = useWallet();
-  const wallet = account?.address;
-console.log("my sui wallet", wallet);
+  
+ 
+  const { currentWallet, connectionStatus } = useCurrentWallet()
+
+  if (connectionStatus === 'connected' && currentWallet.accounts.length > 0) {
+  console.log('Connected Wallet Address:', currentWallet.accounts[0].address);
+  }
+
+
+
+
 
   const [avatarUrl, setAvatarUrl] = useState("");
 
@@ -33,7 +40,7 @@ console.log("my sui wallet", wallet);
   return (
     <div>
       <div className="flex gap-4">
-          <Link href="/profile">{avatarUrl && wallet && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
+          <Link href="/profile">{avatarUrl && currentWallet && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
           <ConnectButton label="Connect with sui"/>
           </div>
     </div>

@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@aptos-labs/ts-sdk": "1.10.0-zeta.1",
+    "@mysten/dapp-kit": "^0.12.10",
     "@mysten/sui.js": "^0.51.2",
     "@suiet/wallet-kit": "^0.2.24",
+    "@tanstack/react-query": "^5.32.0",
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",
     "js-cookie": "^3.0.5",
