@@ -1,15 +1,18 @@
 "use client";
+import {generateNonce, generateRandomness} from '@mysten/zklogin';
+import {useSui} from "./hooks/useSui";
+import {useLayoutEffect} from "react";
+import {UserKeyData} from "./types/UsefulTypes";
+import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
+import {Keypair, PublicKey} from "@mysten/sui.js/cryptography";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import Cookies from "js-cookie";
 import axios from "axios";
-
 import dynamic from 'next/dynamic';
-
 import { ConnectButton, useCurrentWallet} from '@mysten/dapp-kit';
-
 import {TransactionBlock} from "@mysten/sui.js/transactions";
 import '@mysten/dapp-kit/dist/index.css';
 
@@ -46,6 +49,81 @@ export default function Home() {
 
 
   // console.log("sui wallet", currentWallet);
+
+// -------------------------------------------------------------------------------------------------------------------------------
+const {suiClient} = useSui();
+
+  const [loginUrl, setLoginUrl] = useState<string | null>();
+
+    async function prepareLogin() {
+        const {epoch, epochDurationMs, epochStartTimestampMs} = await suiClient.getLatestSuiSystemState();
+
+
+        const maxEpoch = parseInt(epoch) + 2; // this means the ephemeral key will be active for 2 epochs from now.
+        const ephemeralKeyPair : Keypair = new Ed25519Keypair();
+        const ephemeralPrivateKeyB64 = ephemeralKeyPair.export().privateKey;
+
+
+        const ephemeralPublicKey : PublicKey = ephemeralKeyPair.getPublicKey()
+        const ephemeralPublicKeyB64 = ephemeralPublicKey.toBase64();
+
+        const jwt_randomness = generateRandomness();
+        const nonce = generateNonce(ephemeralPublicKey, maxEpoch, jwt_randomness);
+
+        console.log("current epoch = " + epoch);
+        console.log("maxEpoch = " + maxEpoch);
+        console.log("jwt_randomness = " + jwt_randomness);
+        console.log("ephemeral public key = " + ephemeralPublicKeyB64);
+        console.log("nonce = " + nonce);
+
+        const userKeyData: UserKeyData = {
+            randomness: jwt_randomness.toString(),
+            nonce: nonce,
+            ephemeralPublicKey: ephemeralPublicKeyB64,
+            ephemeralPrivateKey: ephemeralPrivateKeyB64,
+            maxEpoch: maxEpoch
+        }
+        localStorage.setItem("userKeyData", JSON.stringify(userKeyData));
+        return userKeyData
+    }
+
+
+    function getRedirectUri() {
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        const customRedirectUri = protocol + "//" + host + "/auth";
+        console.log("customRedirectUri = " + customRedirectUri);
+        return customRedirectUri;
+    }
+    useLayoutEffect(() => {
+
+      prepareLogin().then((userKeyData) => {
+
+          const REDIRECT_URI = 'https://zklogin-dev-redirect.vercel.app/api/auth';
+          const customRedirectUri = getRedirectUri();
+          const params = new URLSearchParams({
+              // When using the provided test client ID + redirect site, the redirect_uri needs to be provided in the state.
+              state: new URLSearchParams({
+                  redirect_uri: customRedirectUri
+              }).toString(),
+              // Test Client ID for devnet / testnet:
+              client_id: '595966210064-3nnnqvmaelqnqsmq448kv05po362smt2.apps.googleusercontent.com',
+              redirect_uri: REDIRECT_URI,
+              response_type: 'id_token',
+              scope: 'openid',
+              nonce: userKeyData.nonce,
+          });
+
+          setLoginUrl(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+      });
+
+
+  }, []);
+
+  // -------------------------------------------------------------------------------------------------------------------------------
+
+
+
   if (connectionStatus === 'connected' && currentWallet.accounts.length > 0) {
     console.log('Connected Wallet Address:', currentWallet.accounts[0].address);
   }
@@ -315,6 +393,17 @@ export default function Home() {
                 Please connect your Sui Wallet
                 </p>
               </div>
+            <div>
+              <a href={loginUrl!}
+                   className="hover:text-blue-600"
+                   target="_blank">
+
+                    <button
+                        className="bg-white text-gray-700 hover:text-gray-900 font-semibold py-2 px-4 border rounded-lg flex items-center space-x-2">
+                        <span>Login with Google</span>
+                    </button>
+                </a>
+             </div>
               <div className="flex items-center p-4 rounded-b pb-20 pt-10 justify-center">
                 {/* <button
                   type="button"
