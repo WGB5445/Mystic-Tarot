@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui.js/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import AuthProvider from "./hooks/AuthProvider";
 
 // const inter = Inter({ subsets: ['latin'] })
 
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body >
+      <AuthProvider>
       <QueryClientProvider client={queryClient}>
 			<SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
 				<WalletProvider>
@@ -32,6 +34,7 @@ export default function RootLayout({
         </WalletProvider>
 			</SuiClientProvider>
 		</QueryClientProvider>
+    </AuthProvider>
       </body>
     </html>
   )

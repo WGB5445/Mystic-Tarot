@@ -2,7 +2,7 @@
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "./hooks/useSui";
 import {useLayoutEffect} from "react";
-import {UserKeyData} from "./types/UsefulTypes";
+import {fromB64} from "@mysten/bcs";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
 import {Keypair, PublicKey} from "@mysten/sui.js/cryptography";
 import Image from "next/image";
@@ -15,6 +15,10 @@ import dynamic from 'next/dynamic';
 import { ConnectButton, useCurrentWallet} from '@mysten/dapp-kit';
 import {TransactionBlock} from "@mysten/sui.js/transactions";
 import '@mysten/dapp-kit/dist/index.css';
+import {GetSaltRequest, LoginResponse, UserKeyData, ZKPPayload, ZKPRequest} from "./types/UsefulTypes";
+import  jwtDecode  from "jwt-decode";
+import {genAddressSeed, getZkLoginSignature, jwtToAddress} from '@mysten/zklogin';
+import {toast} from "react-hot-toast";
 
 
 export default function Home() {
@@ -27,7 +31,17 @@ export default function Home() {
   const [position, setposition] = useState("");
   const [mintdone, setmintdone] = useState(false);
   const { currentWallet, connectionStatus } = useCurrentWallet()
+  const [subjectID, setSubjectID] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [userSalt, setUserSalt] = useState<string | null>(null);
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
 
+
+
+  const MINIMUM_BALANCE = 0.003;  
 //   const getStoredWallet = () => {
 //     try {
 //       return window.localStorage.getItem("connectedWallet");
@@ -69,6 +83,7 @@ const {suiClient} = useSui();
 
         const jwt_randomness = generateRandomness();
         const nonce = generateNonce(ephemeralPublicKey, maxEpoch, jwt_randomness);
+        
 
         console.log("current epoch = " + epoch);
         console.log("maxEpoch = " + maxEpoch);
@@ -88,10 +103,14 @@ const {suiClient} = useSui();
     }
 
 
+
+
+
+
     function getRedirectUri() {
         const protocol = window.location.protocol;
         const host = window.location.host;
-        const customRedirectUri = protocol + "//" + host + "/auth";
+        const customRedirectUri = protocol + "//" + host+ "/" ;
         console.log("customRedirectUri = " + customRedirectUri);
         return customRedirectUri;
     }
@@ -119,6 +138,160 @@ const {suiClient} = useSui();
 
 
   }, []);
+
+
+
+  async function getSalt(subject: string, jwtEncoded: string) {
+    const getSaltRequest: GetSaltRequest = {
+        subject: subject,
+        jwt: jwtEncoded!
+    }
+    console.log("Getting salt...");
+    console.log("Subject = ", subject);
+    console.log("jwt = ", jwtEncoded);
+    const response = await axios.post('/api/userinfo/get/salt', getSaltRequest);
+    console.log("getSalt response = ", response);
+    if (response?.data.status == 200) {
+        const userSalt = response.data.salt;
+        console.log("Salt fetched! Salt = ", userSalt);
+        return userSalt;
+    } else {
+        console.log("Error Getting SALT");
+        return null;
+    }
+}
+
+
+
+
+
+async function checkIfAddressHasBalance(address: string): Promise<boolean> {
+  console.log("Checking whether address " + address + " has balance...");
+  const coins = await suiClient.getCoins({
+      owner: address,
+  });
+  //loop over coins
+  let totalBalance = 0;
+  for (const coin of coins.data) {
+      totalBalance += parseInt(coin.balance);
+  }
+  totalBalance = totalBalance / 1000000000;  //Converting MIST to SUI
+  setUserBalance(totalBalance);
+  console.log("total balance = ", totalBalance);
+  return enoughBalance(totalBalance);
+}
+
+function enoughBalance(userBalance: number) {
+  return userBalance > MINIMUM_BALANCE;
+}
+
+function getTestnetAdminSecretKey() {
+  return process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY;
+}
+
+
+async function giveSomeTestCoins(address: string) {
+  setError(null);
+  console.log("Giving some test coins to address " + address);
+  setTransactionInProgress(true);
+  const adminPrivateKey = getTestnetAdminSecretKey();
+  if (!adminPrivateKey) {
+      createRuntimeError("Admin Secret Key not found. Please set NEXT_PUBLIC_ADMIN_SECRET_KEY environment variable.");
+      return
+  }
+  let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(adminPrivateKey)));
+  const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
+  const tx = new TransactionBlock();
+  const giftCoin = tx.splitCoins(tx.gas, [tx.pure(30000000)]);
+
+  tx.transferObjects([giftCoin], tx.pure(address));
+
+  const res = await suiClient.signAndExecuteTransactionBlock({
+      transactionBlock: tx,
+      signer: adminKeypair,
+      requestType: "WaitForLocalExecution",
+      options: {
+          showEffects: true,
+      },
+  });
+  const status = res?.effects?.status?.status;
+  if (status === "success") {
+      console.log("Gift Coin transfer executed! status = ", status);
+      checkIfAddressHasBalance(address);
+      setTransactionInProgress(false);
+  }
+  if (status == "failure") {
+      createRuntimeError("Gift Coin transfer Failed. Error = " + res?.effects);
+  }
+}
+
+
+
+
+
+  
+
+  async function loadRequiredData(encodedJwt: string) {
+    //Decoding JWT to get useful Info
+    const decodedJwt: LoginResponse = await jwtDecode(encodedJwt!) as LoginResponse;
+
+    setSubjectID(decodedJwt.sub);
+    //Getting Salt
+    const userSalt = await getSalt(decodedJwt.sub, encodedJwt);
+    if (!userSalt) {
+        createRuntimeError("Error getting userSalt");
+        return;
+    }
+
+    //Generating User Address
+    const address = jwtToAddress(encodedJwt!, BigInt(userSalt!));
+
+    setUserAddress(address);
+    setUserSalt(userSalt!);
+    const hasEnoughBalance = await checkIfAddressHasBalance(address);
+    if(!hasEnoughBalance){
+        await giveSomeTestCoins(address);
+        toast.success("We' ve fetched some coins for you, so you can get started with Sui !", {   duration: 8000,} );
+    }
+
+    console.log("All required data loaded. ZK Address =", address);
+ 
+}
+
+useLayoutEffect(() => {
+  if (typeof window !== 'undefined') {
+  setError(null);
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const jwt_token_encoded = hash.get("id_token");
+
+  const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+
+  if (!jwt_token_encoded) {
+      createRuntimeError("Could not retrieve a valid JWT Token!")
+      return;
+  }
+
+  if (!userKeyData) {
+      createRuntimeError("user Data is null");
+      return;
+  }
+  localStorage.setItem("id_token", jwt_token_encoded);
+
+  setJwtEncoded(jwt_token_encoded);
+
+  loadRequiredData(jwt_token_encoded);
+}
+ 
+
+}, []);
+
+if (typeof window !== 'undefined') {
+  console.log("localstorage", localStorage.getItem("id_token"))
+}
+
+
+
+
 
   // -------------------------------------------------------------------------------------------------------------------------------
 
@@ -222,6 +395,12 @@ const {suiClient} = useSui();
       setLoading(false);
     }
   };
+  function createRuntimeError(message: string) {
+    setError(message);
+    console.log(message);
+    setTransactionInProgress(false);
+}
+
 
   return (
     <main
@@ -255,7 +434,7 @@ const {suiClient} = useSui();
 
       <div className="lg:flex md:flex gap-10">
         <div>
-          {!ques && (
+          {!ques &&  (
             <button
               onClick={() => {
                 setques(true);
@@ -266,7 +445,7 @@ const {suiClient} = useSui();
             </button>
           )}
 
-          {ques && currentWallet && (
+          {ques && (currentWallet || localStorage.getItem("id_token")!=null) && (
             <div
               className="px-10 py-10 bgcolor rounded-2xl mt-10 max-w-xl"
               style={{
@@ -353,7 +532,7 @@ const {suiClient} = useSui();
         )}
       </div>
 
-      {ques && !currentWallet && (
+      {ques && (!currentWallet || localStorage.getItem("id_token")==null)&& (
         <div
           style={{ backgroundColor: "#222944E5" }}
           className="flex overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full max-h-full"

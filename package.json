@@ -30,6 +30,7 @@
     "react-dom": "^18",
     "react-hot-toast": "^2.4.1",
     "react-loader-spinner": "^6.1.6",
+    "react-router-dom": "^6.23.0",
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
   },
