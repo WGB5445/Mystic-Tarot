@@ -19,6 +19,9 @@ import {GetSaltRequest, LoginResponse, UserKeyData, ZKPPayload, ZKPRequest} from
 import  jwtDecode  from "jwt-decode";
 import {genAddressSeed, getZkLoginSignature, jwtToAddress} from '@mysten/zklogin';
 import {toast} from "react-hot-toast";
+import { ZkLoginSignatureInputs} from "@mysten/sui.js/dist/cjs/zklogin/bcs";
+import {SerializedSignature} from "@mysten/sui.js/cryptography";
+import {toBigIntBE} from "bigint-buffer";
 
 
 export default function Home() {
@@ -38,6 +41,10 @@ export default function Home() {
   const [userSalt, setUserSalt] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState<number>(0);
   const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
+  const [autheticated,setautheticated] = useState<boolean>(false);
+  const [zkProof, setZkProof] = useState<ZkLoginSignatureInputs | null>(null);
+  const [txDigest, setTxDigest] = useState<string | null>(null);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
 
 
 
@@ -63,6 +70,151 @@ export default function Home() {
 
 
   // console.log("sui wallet", currentWallet);
+//----------------------------------------------------------------transaction-----------------------------------------------------------
+
+
+
+async function executeTransactionWithZKP() {
+  setError(null);
+  setTransactionInProgress(true);
+  const decodedJwt: LoginResponse = jwtDecode(jwtEncoded!) as LoginResponse;
+  const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
+  const partialZkSignature = zkProof!;
+
+  if (!partialZkSignature || !ephemeralKeyPair || !userKeyData) {
+      createRuntimeError("Transaction cannot proceed. Missing critical data.");
+      return;
+  }
+
+  const txb = new TransactionBlock();
+
+  //Just a simple Demo call to create a little NFT weapon :p
+  txb.moveCall({
+      target: `0x7e5189f038e2c830d7db39420ea7c844a7e82f926ec004ba341a92589d86de60::mystic::draws_card`,  //demo package published on testnet
+      arguments: [
+          txb.object('0x8'),  
+      ],
+  });
+  txb.setSender(userAddress!);
+
+  const signatureWithBytes = await txb.sign({client: suiClient, signer: ephemeralKeyPair});
+
+  console.log("Got SignatureWithBytes = ", signatureWithBytes);
+  console.log("maxEpoch = ", userKeyData.maxEpoch);
+  console.log("userSignature = ", signatureWithBytes.signature);
+
+  const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud);
+
+  const zkSignature: SerializedSignature = getZkLoginSignature({
+      inputs: {
+          ...partialZkSignature,
+          addressSeed: addressSeed.toString(),
+      },
+      maxEpoch: userKeyData.maxEpoch,
+      userSignature: signatureWithBytes.signature,
+  });
+
+  suiClient.executeTransactionBlock({
+      transactionBlock: signatureWithBytes.bytes,
+      signature: zkSignature,
+      options: {
+          showEffects: true
+      }
+  }).then((response) => {
+      if (response.effects?.status.status == "success") {
+          console.log("Transaction executed! Digest = ", response.digest);
+          setTxDigest(response.digest);
+          setTransactionInProgress(false);
+      } else {
+          console.log("Transaction failed! reason = ", response.effects?.status)
+          setTransactionInProgress(false);
+      }
+  }).catch((error) => {
+      console.log("Error During Tx Execution. Details: ", error);
+      if(error.toString().includes("Signature is not valid")){
+          createRuntimeError("Signature is not valid. Please generate a new one by clicking on 'Get new ZK Proof'");
+      }
+      setTransactionInProgress(false);
+  });
+}
+
+
+
+function getEphemeralKeyPair() {
+  const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+  let ephemeralKeyPairArray = Uint8Array.from(Array.from(fromB64(userKeyData.ephemeralPrivateKey!)));
+  console.log("keya",userKeyData.ephemeralPrivateKey )
+  const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(ephemeralKeyPairArray);
+  return {userKeyData, ephemeralKeyPair};
+  
+}
+//------------------------------------------------------------------zkproof--------------------------------------------------------
+
+
+
+
+async function getZkProof(forceUpdate = false) {
+  setError(null);
+  setTransactionInProgress(true);
+  const decodedJwt: LoginResponse = jwtDecode(jwtEncoded!) as LoginResponse;
+  const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
+
+  printUsefulInfo(decodedJwt, userKeyData);
+
+  const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
+
+  const zkpPayload: ZKPPayload =
+      {
+          jwt: jwtEncoded!,
+          extendedEphemeralPublicKey: toBigIntBE(
+              Buffer.from(ephemeralPublicKeyArray),
+          ).toString(),
+          jwtRandomness: userKeyData.randomness,
+          maxEpoch: userKeyData.maxEpoch,
+          salt: userSalt!,
+          keyClaimName: "sub"
+      };
+  const ZKPRequest: ZKPRequest = {
+      zkpPayload,
+      forceUpdate
+  }
+  console.log("about to post zkpPayload = ", ZKPRequest);
+  setPublicKey(zkpPayload.extendedEphemeralPublicKey);
+
+  //Invoking our custom backend to delagate Proof Request to Mysten backend.
+  // Delegation was done to avoid CORS errors.
+  const proofResponse = await axios.post('/api/zkp/get', ZKPRequest);
+
+  if (!proofResponse?.data?.zkp) {
+      createRuntimeError("Error getting Zero Knowledge Proof. Please check that Prover Service is running.");
+      return;
+  }
+  console.log("zkp response = ", proofResponse.data.zkp);
+
+  setZkProof((proofResponse.data.zkp as ZkLoginSignatureInputs));
+
+  setTransactionInProgress(false);
+}
+
+useEffect(() => {
+  if (jwtEncoded && userSalt) {
+      console.log("jwtEncoded is defined. Getting ZK Proof...");
+      getZkProof();
+  }
+}, [jwtEncoded, userSalt]);
+
+
+function printUsefulInfo(decodedJwt: LoginResponse, userKeyData: UserKeyData) {
+  console.log("iat  = " + decodedJwt.iat);
+  console.log("iss  = " + decodedJwt.iss);
+  console.log("sub = " + decodedJwt.sub);
+  console.log("aud = " + decodedJwt.aud);
+  console.log("exp = " + decodedJwt.exp);
+  console.log("nonce = " + decodedJwt.nonce);
+  console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
+  
+}
+
 
 // -------------------------------------------------------------------------------------------------------------------------------
 const {suiClient} = useSui();
@@ -229,6 +381,7 @@ async function giveSomeTestCoins(address: string) {
 
 
 
+
   
 
   async function loadRequiredData(encodedJwt: string) {
@@ -276,7 +429,7 @@ useLayoutEffect(() => {
       return;
   }
   localStorage.setItem("id_token", jwt_token_encoded);
-
+  setautheticated(localStorage.getItem("id_token")!==null)
   setJwtEncoded(jwt_token_encoded);
 
   loadRequiredData(jwt_token_encoded);
@@ -287,8 +440,9 @@ useLayoutEffect(() => {
 
 if (typeof window !== 'undefined') {
   console.log("localstorage", localStorage.getItem("id_token"))
+  console.log("boolean", localStorage.getItem("id_token")!==null)
+ 
 }
-
 
 
 
@@ -304,72 +458,72 @@ if (typeof window !== 'undefined') {
 
 
 
-  const handleDrawCardAndFetchreading = async () => {
-    setLoading(true);
+  // const handleDrawCardAndFetchreading = async () => {
+  //   setLoading(true);
 
-    try {
+  //   try {
       
-      const tx = new TransactionBlock();  
-      const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
-      tx.moveCall({
-        target: `${packageObjectId}::mystic::draws_card`,
-        arguments: [tx.object('0x8')],
-      });
-      const drawResponse = await currentWallet.signAndExecuteTransactionBlock({
-        transactionBlock: tx,
-      });
+  //     const tx = new TransactionBlock();  
+  //     const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
+  //     tx.moveCall({
+  //       target: `${packageObjectId}::mystic::draws_card`,
+  //       arguments: [tx.object('0x8')],
+  //     });
+  //     const drawResponse = await currentWallet.signAndExecuteTransactionBlock({
+  //       transactionBlock: tx,
+  //     });
 
-      console.log("Drawn Card Transaction:", drawResponse);
+  //     console.log("Drawn Card Transaction:", drawResponse);
 
-      const card = drawResponse.events[2].data.card;
-      const position = drawResponse.events[2].data.position;
+  //     const card = drawResponse.events[2].data.card;
+  //     const position = drawResponse.events[2].data.position;
 
-      setcardimage(drawResponse.events[2].data.card_uri);
-      setDrawnCard(drawResponse.events[2].data.card);
-      setposition(drawResponse.events[2].data.position);
+  //     setcardimage(drawResponse.events[2].data.card_uri);
+  //     setDrawnCard(drawResponse.events[2].data.card);
+  //     setposition(drawResponse.events[2].data.position);
 
 
-      const requestBody = {
-        model: "gpt-4",
-        messages: [
-          {
-            role: "user",
-            content: `You are a Major Arcana Tarot reader. Client asks this question “${description}” and draws the “${card}” card in “${position}” position. Interpret to the client in no more than 150 words.`,
-          },
-        ],
-      };
+  //     const requestBody = {
+  //       model: "gpt-4",
+  //       messages: [
+  //         {
+  //           role: "user",
+  //           content: `You are a Major Arcana Tarot reader. Client asks this question “${description}” and draws the “${card}” card in “${position}” position. Interpret to the client in no more than 150 words.`,
+  //         },
+  //       ],
+  //     };
       
-      let apiKey = process.env.NEXT_PUBLIC_API_KEY;
-      const baseURL = "https://api.openai.com/v1/chat/completions";
-      const headers = new Headers();
-      headers.append("Content-Type", "application/json");
-      headers.append("Accept", "application/json");
-      headers.append(
-        "Authorization",
-        `Bearer ${apiKey}`
-      );
-      const readingResponse = await fetch(baseURL, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(requestBody),
-      });
+  //     let apiKey = process.env.NEXT_PUBLIC_API_KEY;
+  //     const baseURL = "https://api.openai.com/v1/chat/completions";
+  //     const headers = new Headers();
+  //     headers.append("Content-Type", "application/json");
+  //     headers.append("Accept", "application/json");
+  //     headers.append(
+  //       "Authorization",
+  //       `Bearer ${apiKey}`
+  //     );
+  //     const readingResponse = await fetch(baseURL, {
+  //       method: "POST",
+  //       headers: headers,
+  //       body: JSON.stringify(requestBody),
+  //     });
   
 
-      if (!readingResponse.ok) {
-        throw new Error("Failed to fetch reading");
-      }
+  //     if (!readingResponse.ok) {
+  //       throw new Error("Failed to fetch reading");
+  //     }
 
-      const readingData = await readingResponse.json();
-      setLyrics(readingData.choices[0].message.content);
-      console.log(readingData);
-      console.log("Data to send in mint:", card, position);
+  //     const readingData = await readingResponse.json();
+  //     setLyrics(readingData.choices[0].message.content);
+  //     console.log(readingData);
+  //     console.log("Data to send in mint:", card, position);
 
-    } catch (error) {
-      console.error("Error handling draw card and fetching reading:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Error handling draw card and fetching reading:", error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const mintreading = async () => {
     const wallet = Cookies.get("tarot_wallet");
@@ -400,6 +554,7 @@ if (typeof window !== 'undefined') {
     console.log(message);
     setTransactionInProgress(false);
 }
+
 
 
   return (
@@ -445,7 +600,8 @@ if (typeof window !== 'undefined') {
             </button>
           )}
 
-          {ques && (currentWallet || localStorage.getItem("id_token")!=null) && (
+          {ques && (currentWallet ||autheticated) && (
+            
             <div
               className="px-10 py-10 bgcolor rounded-2xl mt-10 max-w-xl"
               style={{
@@ -462,14 +618,66 @@ if (typeof window !== 'undefined') {
                     onChange={(e) => setDescription(e.target.value)}
                     className="p-2 rounded-lg w-full focus:outline-none"
                   />
+                  
                   <button
-                    onClick={handleDrawCardAndFetchreading}
+                    onClick={executeTransactionWithZKP}
                     className="mt-20 bg-black rounded-lg py-2 px-8 text-white"
                   >
                     Get my reading
                   </button>
+                  {userAddress ? (
+                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">Balance</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{userBalance.toFixed(4)} SUI</span>
+                                <span className="ml-5">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                    disabled={!userAddress}
+                                    onClick={() => giveSomeTestCoins(userAddress!)}
+                                >
+                                        Get Testnet Coins
+                                    </button>
+                            </span>
+                            </dd>
+                        </div>
+                    ) : null}
+                  {zkProof ? (
+                        <div className="">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">ZK Proof (point A)</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{zkProof?.proofPoints?.a.toString().slice(0, 30)}...</span>
+                                <span className="ml-5">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                    onClick={() => getZkProof(true)}
+                                >
+                                        Get new ZK Proof
+                                    </button>
+                            </span>
+                            </dd>
+                        </div>
+                    ) : null
+                     }
+                    
+                    {zkProof && enoughBalance(userBalance) ? (
+                    <div className="pt-5">
+                        <button
+                            type="submit"
+                            className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                            disabled={!userAddress}
+                            onClick={() => executeTransactionWithZKP()}
+                        >
+                            Execute Transaction
+                        </button>
+                    </div>
+                ) : null}
                 </>
               )}
+              
+
               <div>
                 {lyrics && (
                   <div>
@@ -532,7 +740,7 @@ if (typeof window !== 'undefined') {
         )}
       </div>
 
-      {ques && (!currentWallet || localStorage.getItem("id_token")==null)&& (
+      {ques && (!currentWallet &&  !autheticated)&& (
         <div
           style={{ backgroundColor: "#222944E5" }}
           className="flex overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full max-h-full"
