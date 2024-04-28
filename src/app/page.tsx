@@ -22,6 +22,7 @@ import {toast} from "react-hot-toast";
 import { ZkLoginSignatureInputs} from "@mysten/sui.js/dist/cjs/zklogin/bcs";
 import {SerializedSignature} from "@mysten/sui.js/cryptography";
 import {toBigIntBE} from "bigint-buffer";
+import { getFullnodeUrl, SuiClient } from '@mysten/sui.js/client';
 
 
 export default function Home() {
@@ -458,72 +459,87 @@ if (typeof window !== 'undefined') {
 
 
 
-  // const handleDrawCardAndFetchreading = async () => {
-  //   setLoading(true);
+  const handleDrawCardAndFetchreading = async () => {
+    setLoading(true);
 
-  //   try {
+    try {
+ 
+      // use getFullnodeUrl to define Devnet RPC location
+      const rpcUrl = getFullnodeUrl('devnet');
       
-  //     const tx = new TransactionBlock();  
-  //     const packageObjectId = "0xaac3657009b97086a1ecd86d73763a50d730034b5f6f4b3765b57ff8304db3a5";
-  //     tx.moveCall({
-  //       target: `${packageObjectId}::mystic::draws_card`,
-  //       arguments: [tx.object('0x8')],
-  //     });
-  //     const drawResponse = await currentWallet.signAndExecuteTransactionBlock({
-  //       transactionBlock: tx,
-  //     });
+      // create a client connected to devnet
+      const client = new SuiClient({ url: rpcUrl });
 
-  //     console.log("Drawn Card Transaction:", drawResponse);
+      // random Keypair
+      const keypair = new Ed25519Keypair();
+            
+            const tx = new TransactionBlock();  
 
-  //     const card = drawResponse.events[2].data.card;
-  //     const position = drawResponse.events[2].data.position;
+            const [coin] = tx.splitCoins(tx.gas, [100]);
 
-  //     setcardimage(drawResponse.events[2].data.card_uri);
-  //     setDrawnCard(drawResponse.events[2].data.card);
-  //     setposition(drawResponse.events[2].data.position);
-
-
-  //     const requestBody = {
-  //       model: "gpt-4",
-  //       messages: [
-  //         {
-  //           role: "user",
-  //           content: `You are a Major Arcana Tarot reader. Client asks this question “${description}” and draws the “${card}” card in “${position}” position. Interpret to the client in no more than 150 words.`,
-  //         },
-  //       ],
-  //     };
+            console.log("coins addr", currentWallet.accounts[0].address)
       
-  //     let apiKey = process.env.NEXT_PUBLIC_API_KEY;
-  //     const baseURL = "https://api.openai.com/v1/chat/completions";
-  //     const headers = new Headers();
-  //     headers.append("Content-Type", "application/json");
-  //     headers.append("Accept", "application/json");
-  //     headers.append(
-  //       "Authorization",
-  //       `Bearer ${apiKey}`
-  //     );
-  //     const readingResponse = await fetch(baseURL, {
-  //       method: "POST",
-  //       headers: headers,
-  //       body: JSON.stringify(requestBody),
-  //     });
+      // transfer the split coin to a specific address
+      tx.transferObjects([coin], currentWallet.accounts[0].address);
+
+      const packageObjectId = "0x7e5189f038e2c830d7db39420ea7c844a7e82f926ec004ba341a92589d86de60";
+      tx.moveCall({
+        target: `${packageObjectId}::mystic::draws_card`,
+        arguments: [tx.object('0x8')],
+      });
+      const drawResponse = await client.signAndExecuteTransactionBlock({ signer: keypair, transactionBlock: tx });
+
+      console.log("Drawn Card Transaction:", drawResponse);
+
+      const card = drawResponse.events[2].data.card;
+      const position = drawResponse.events[2].data.position;
+
+      setcardimage(drawResponse.events[2].data.card_uri);
+      setDrawnCard(drawResponse.events[2].data.card);
+      setposition(drawResponse.events[2].data.position);
+
+
+      const requestBody = {
+        model: "gpt-4",
+        messages: [
+          {
+            role: "user",
+            content: `You are a Major Arcana Tarot reader. Client asks this question “${description}” and draws the “${card}” card in “${position}” position. Interpret to the client in no more than 150 words.`,
+          },
+        ],
+      };
+      
+      let apiKey = process.env.NEXT_PUBLIC_API_KEY;
+      const baseURL = "https://api.openai.com/v1/chat/completions";
+      const headers = new Headers();
+      headers.append("Content-Type", "application/json");
+      headers.append("Accept", "application/json");
+      headers.append(
+        "Authorization",
+        `Bearer ${apiKey}`
+      );
+      const readingResponse = await fetch(baseURL, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(requestBody),
+      });
   
 
-  //     if (!readingResponse.ok) {
-  //       throw new Error("Failed to fetch reading");
-  //     }
+      if (!readingResponse.ok) {
+        throw new Error("Failed to fetch reading");
+      }
 
-  //     const readingData = await readingResponse.json();
-  //     setLyrics(readingData.choices[0].message.content);
-  //     console.log(readingData);
-  //     console.log("Data to send in mint:", card, position);
+      const readingData = await readingResponse.json();
+      setLyrics(readingData.choices[0].message.content);
+      console.log(readingData);
+      console.log("Data to send in mint:", card, position);
 
-  //   } catch (error) {
-  //     console.error("Error handling draw card and fetching reading:", error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+    } catch (error) {
+      console.error("Error handling draw card and fetching reading:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const mintreading = async () => {
     const wallet = Cookies.get("tarot_wallet");
@@ -620,7 +636,8 @@ if (typeof window !== 'undefined') {
                   />
                   
                   <button
-                    onClick={executeTransactionWithZKP}
+                    // onClick={executeTransactionWithZKP}
+                    onClick={handleDrawCardAndFetchreading}
                     className="mt-20 bg-black rounded-lg py-2 px-8 text-white"
                   >
                     Get my reading

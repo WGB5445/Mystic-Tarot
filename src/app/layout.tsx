@@ -29,7 +29,7 @@ export default function RootLayout({
       <body >
       <AuthProvider>
       <QueryClientProvider client={queryClient}>
-			<SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+			<SuiClientProvider networks={networkConfig} defaultNetwork="devnet">
 				<WalletProvider>
         {children}
         </WalletProvider>
