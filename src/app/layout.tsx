@@ -14,7 +14,8 @@ import AuthProvider from "./hooks/AuthProvider";
 // }
 const { networkConfig } = createNetworkConfig({
 	testnet: { url: getFullnodeUrl('testnet') },
-	// mainnet: { url: getFullnodeUrl('mainnet') },
+	mainnet: { url: getFullnodeUrl('mainnet') },
+  devnet: { url: getFullnodeUrl('devnet') },
 });
 const queryClient = new QueryClient();
 
