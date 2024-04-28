@@ -41,7 +41,17 @@ const Navbar = () => {
     <div>
       <div className="flex gap-4">
           <Link href="/profile">{avatarUrl && currentWallet && <img src={avatarUrl} alt="Avatar" style={{width: 45}}/>} </Link>
-          <ConnectButton label="Connect with sui"/>
+          <div className="flex flex-col text-white">
+          <ConnectButton connectText = "Connect with Sui"/>
+          {connectionStatus === 'connected' && (
+            <div className="flex gap-4 mx-auto">
+              Wallet Address :
+                  {currentWallet.accounts.map((account) => (
+                    <div>{account.address.slice(0, 4)}...{account.address.slice(-3)}</div>
+                  ))}
+            </div>
+          )}
+          </div>
           </div>
     </div>
   );
