@@ -472,9 +472,10 @@ if (typeof window !== 'undefined') {
 
       // random Keypair
       const keypair = new Ed25519Keypair();
-            
-            const tx = new TransactionBlock();
+      
+      const tx = new TransactionBlock(); // declare the transaction block
 
+            
             const CLIENT_DEFAULT_OPTIONS = {
               showType: true,
               showOwner: true,
@@ -499,17 +500,24 @@ if (typeof window !== 'undefined') {
                                   .then(({ data: objectDetail }) => {
                                       if (objectDetail.type.endsWith('::sui::SUI>')) {
                                           console.log("gas objects", objectDetail);
+
+                                    tx.setGasPayment(objectDetail[0]);
+                                    const [coin] = tx.splitCoins(tx.gas, [2]);
+                          
+                          // transfer the split coin to a specific address
+                          tx.transferObjects([coin], tx.pure(currentWallet.accounts[0].address));
+                          console.log("coins addr", currentWallet.accounts[0].address, [coin], tx)
                                       }
                                   });
                           });
                       });
 
-            const [coin] = tx.splitCoins(tx.gas, [2]);
-      
-      // transfer the split coin to a specific address
-      tx.transferObjects([coin], tx.pure(currentWallet.accounts[0].address));
+            
 
-      // console.log("coins addr", currentWallet.accounts[0].address, [coin], tx)
+
+            
+
+      
 
       const packageObjectId = "0x7e5189f038e2c830d7db39420ea7c844a7e82f926ec004ba341a92589d86de60";
       tx.moveCall({
