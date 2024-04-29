@@ -473,20 +473,53 @@ if (typeof window !== 'undefined') {
       // random Keypair
       const keypair = new Ed25519Keypair();
             
-            const tx = new TransactionBlock();  
+            const tx = new TransactionBlock();
 
-            const [coin] = tx.splitCoins(tx.gas, [100]);
+            const CLIENT_DEFAULT_OPTIONS = {
+              showType: true,
+              showOwner: true,
+              showPreviousTransaction: false,
+              showDisplay: false,
+              showContent: true,
+              showBcs: false,
+              showStorageRebate: false
+          };
+      
+                  client
+                      .getOwnedObjects({
+                          owner: currentWallet.accounts[0].address
+                      })
+                      .then((objects) => {
+                          objects?.data.map(({ data: object }) => {
+                              client
+                                  .getObject({
+                                      id: object.objectId,
+                                      options: CLIENT_DEFAULT_OPTIONS
+                                  })
+                                  .then(({ data: objectDetail }) => {
+                                      if (objectDetail.type.endsWith('::sui::SUI>')) {
+                                          console.log("gas objects", objectDetail);
+                                      }
+                                  });
+                          });
+                      });
 
-            console.log("coins addr", currentWallet.accounts[0].address)
+            const [coin] = tx.splitCoins(tx.gas, [2]);
       
       // transfer the split coin to a specific address
-      tx.transferObjects([coin], currentWallet.accounts[0].address);
+      tx.transferObjects([coin], tx.pure(currentWallet.accounts[0].address));
+
+      // console.log("coins addr", currentWallet.accounts[0].address, [coin], tx)
 
       const packageObjectId = "0x7e5189f038e2c830d7db39420ea7c844a7e82f926ec004ba341a92589d86de60";
       tx.moveCall({
         target: `${packageObjectId}::mystic::draws_card`,
-        arguments: [tx.object('0x8')],
+        arguments: [
+          // coin,
+          tx.object('0x8')
+        ],
       });
+
       const drawResponse = await client.signAndExecuteTransactionBlock({ signer: keypair, transactionBlock: tx });
 
       console.log("Drawn Card Transaction:", drawResponse);
