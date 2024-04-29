@@ -12,8 +12,8 @@ import Navbar from "../../components/Navbar";
 import Cookies from "js-cookie";
 import axios from "axios";
 import dynamic from 'next/dynamic';
-import { ConnectButton, useCurrentWallet} from '@mysten/dapp-kit';
-import {TransactionBlock} from "@mysten/sui.js/transactions";
+import { ConnectButton, useCurrentWallet, useSignAndExecuteTransactionBlock} from '@mysten/dapp-kit';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 import '@mysten/dapp-kit/dist/index.css';
 import {GetSaltRequest, LoginResponse, UserKeyData, ZKPPayload, ZKPRequest} from "./types/UsefulTypes";
 import  jwtDecode  from "jwt-decode";
@@ -457,7 +457,7 @@ if (typeof window !== 'undefined') {
   }
 
 
-
+  const { mutate: signAndExecuteTransactionBlock } = useSignAndExecuteTransactionBlock();
 
   const handleDrawCardAndFetchreading = async () => {
     setLoading(true);
@@ -470,8 +470,6 @@ if (typeof window !== 'undefined') {
       // create a client connected to devnet
       const client = new SuiClient({ url: rpcUrl });
 
-      // random Keypair
-      const keypair = new Ed25519Keypair();
       
       const tx = new TransactionBlock(); // declare the transaction block
 
@@ -512,13 +510,8 @@ if (typeof window !== 'undefined') {
                           });
                       });
 
-            
 
-
-            
-
-      
-
+                      
       const packageObjectId = "0x7e5189f038e2c830d7db39420ea7c844a7e82f926ec004ba341a92589d86de60";
       tx.moveCall({
         target: `${packageObjectId}::mystic::draws_card`,
@@ -527,8 +520,8 @@ if (typeof window !== 'undefined') {
           tx.object('0x8')
         ],
       });
-
-      const drawResponse = await client.signAndExecuteTransactionBlock({ signer: keypair, transactionBlock: tx });
+ 
+      const drawResponse = await signAndExecuteTransactionBlock({transactionBlock:tx});
 
       console.log("Drawn Card Transaction:", drawResponse);
 
